@@ -5,6 +5,7 @@ import json
 import requests
 
 DOCUMENTATION = """
+---
 module: stingray_node
 version_added: 1.8.2
 short_description: manage nodes in stingray traffic managers
