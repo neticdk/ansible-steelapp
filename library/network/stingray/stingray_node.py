@@ -28,7 +28,20 @@ options:
             - Operation to perform on node
         required: false
         default: 'present'
-        choices: ['present', 'absent', 'enabled', 'disabled', 'draining']
+        choices: ['present', 'absent']
+    lb_state:
+        description:
+            - State to set in load balancer
+        required: false
+        choices: ['active', 'disabled', 'draining']
+    weight:
+        description:
+            - Set the weight of the node
+        required: false
+    priority:
+        description:
+            - Set the priority of the node
+        required: false
     server:
         description:
             - Server to connect to (without URI scheme or port)
@@ -56,20 +69,23 @@ options:
         default: null
 """
 # TODO: examples
-# TODO: priority, weight
 
 class StingrayNode(object):
-    def __init__(self, module, server, port, timeout, user, password, pool, node):
-        self.module      = module
-        self.server      = server
-        self.port        = port
-        self.timeout     = timeout
-        self.user        = user
-        self.password    = password
-        self.pool        = pool
-        self.node        = node
-        self.msg         = ''
-        self.changed     = False
+    def __init__(self, module, server, port, timeout, user, password, pool,
+                 node, weight, priority, lb_state):
+        self.module           = module
+        self.server           = server
+        self.port             = port
+        self.timeout          = timeout
+        self.user             = user
+        self.password         = password
+        self.pool             = pool
+        self.node             = node
+        self.desired_weight   = weight
+        self.desired_priority = priority
+        self.desired_lb_state = lb_state
+        self.msg              = ''
+        self.changed          = False
 
         self._url = 'https://{0}:{1}/api/tm/3.0/config/active/pools/{2}'.format(server, port, pool)
         self._jsontype = {'content-type': 'application/json'}
@@ -82,7 +98,7 @@ class StingrayNode(object):
             response = self._client.get(self._url, timeout=self.timeout)
         except requests.exceptions.ConnectionError as e:
             self.module.fail_json(msg=
-                    "Unable to connect to {0}: {1}".format(self._url, e.message))
+                    "Unable to connect to {0}: {1}".format(self._url, str(e)))
 
         if response.status_code == 404:
             self.module.fail_json(msg="Pool {0} not found".format(self.pool))
@@ -96,8 +112,10 @@ class StingrayNode(object):
         return self.pool_data['properties']['basic']['nodes_table']
 
     def _node_exists(self):
-        return bool([n for n in self._nodes()
-            if n['node'] == self.node])
+        return bool(self._get_current_node())
+
+    def _get_current_node(self):
+        return [n for n in self._nodes() if n['node'] == self.node]
 
     def _has_state(self, state):
         return bool([n for n in self._nodes()
@@ -115,113 +133,97 @@ class StingrayNode(object):
             return self._client.put(self._url, data = json.dumps(pool_data),
                                     headers = self._jsontype)
 
-    def set_present(self):
-        if not self._node_exists():
-            if self.module.check_mode:
-                self.msg = "Add %s to %s" % (self.node, self.pool)
-                self.changed = True
-                return
-
-            new_nodes = self._nodes()+[{'node': self.node, 'state': 'active'}]
-            response = self.set_nodes(new_nodes)
-
-            if response.status_code == 200:
-                self.changed = True
-                self.msg = "Added {0} to {1}".format(self.node, self.pool)
-                self.pool_data = json.loads(response.text)
-            else:
-                self.module.fail_json(msg=
-                        "Failed to add {0} to {1} - got HTTP {2} from \
-                        server".format(self.node, self.pool,
-                                       response.status_code))
-        else:
-            self.changed = False
-            self.msg = "{0} in {1} already present".format(self.node, self.pool)
-
     def set_absent(self):
+        self.changed = False
+        changes = {
+                'node': self.node,
+                'pool': self.pool
+        }
+
         if self._node_exists():
+            self.changed = True
+            changes['action'] = 'remove_node'
+            self.msg = changes
+
             if self.module.check_mode:
-                self.msg = "Remove {0} from {1}".format(self.node, self.pool)
-                self.changed = True
                 return
 
             new_nodes = [n for n in self._nodes() if n['node'] != self.node]
             response = self.set_nodes(new_nodes)
 
             if response.status_code == 200:
-                self.changed = True
-                self.msg = "Removed {0} from {1}".format(self.node, self.pool)
                 self.pool_data = json.loads(response.text)
             else:
-                self.module.fail_json(msg=
-                        "Failed to remove {0} from {1} - got HTTP {2} from \
-                        server".format(self.node, self.pool,
-                                       response.status_code))
+                changes['error'] = "HTTP {2}".format(response.status_code)
+                self.module.fail_json(msg=changes)
         else:
             self.changed = False
-            self.msg = "{0} in {1} already absent".format(self.node, self.pool)
+            self.msg = changes
 
-    def set_state(self, new_state):
-        if self._node_exists():
-            if not self._has_state(new_state):
+    def set_present(self):
+        self.changed = False
+        changes = {
+                'node': self.node,
+                'pool': self.pool
+        }
+
+        if not self._node_exists():
+            changes['action'] = 'add_node'
+            self.msg = changes
+            self.changed = True
+
+            if self.module.check_mode:
+                return
+
+            new_nodes = self._nodes()+[
+                    {
+                        'node'    : self.node,
+                        'state'   : self.desired_lb_state or 'active',
+                        'weight'  : self.desired_weight or 1,
+                        'priority': self.desired_priority or 1,
+                    }]
+            response = self.set_nodes(new_nodes)
+
+            if response.status_code == 200:
+                self.pool_data = json.loads(response.text)
+            else:
+                changes['error'] = "HTTP {2}".format(response.status_code)
+                self.module.fail_json(msg=changes)
+        else:
+            current_node = self._get_current_node()[0]
+
+            if self.desired_lb_state and self.desired_lb_state != current_node['state']:
+                changes['state'] = { 'before': current_node['state'], 'after': self.desired_lb_state }
+                current_node['state'] = self.desired_lb_state
+                self.changed = True
+
+            if self.desired_weight and self.desired_weight != current_node['weight']:
+                changes['weight'] = { 'before': current_node['weight'], 'after': self.desired_weight }
+                current_node['weight'] = self.desired_weight
+                self.changed = True
+
+            if self.desired_priority and self.desired_priority != current_node['priority']:
+                changes['priority'] = { 'before': current_node['priority'], 'after': self.desired_priority }
+                current_node['priority'] = self.desired_priority
+                self.changed = True
+
+            if self.changed:
+                self.msg = changes
                 if self.module.check_mode:
-                    self.msg = "Set {0} in {1} to {2}".format(
-                            self.node, self.pool, new_state)
-                    self.changed = True
                     return
 
-                new_nodes = self._nodes()
-                for node in new_nodes:
-                    node.update(
-                            ('state', new_state) for k, v in node.iteritems()
-                            if v == self.node)
+                new_nodes = [n for n in self._nodes() if n['node'] != self.node]
+                new_nodes = new_nodes+[current_node]
 
                 response = self.set_nodes(new_nodes)
 
                 if response.status_code == 200:
-                    self.changed = True
-                    self.msg = "Set {0} in {1} to {2}".format(
-                            self.node, self.pool, new_state)
                     self.pool_data = json.loads(response.text)
                 else:
-                    self.module.fail_json(msg=
-                            "Failed to set {0} in {1} to {2} - got HTTP {3} \
-                            from server".format(self.node, self.pool,
-                                                new_state,
-                                                response.status_code))
+                    changes['error'] = "HTTP {2}".format(response.status_code)
+                    self.module.fail_json(msg=changes)
             else:
-                self.changed = False
-                self.msg = "{0} in {1} already set to {2}".format(
-                        self.node, self.pool, new_state)
-        else:
-            if self.module.check_mode:
-                self.msg = "Add and set {0} in {1} to {2}".format(
-                        self.node, self.pool, new_state)
-                self.changed = True
-                return
-
-            new_nodes = self._nodes()+[{'node': self.node, 'state': new_state}]
-            response = self.set_nodes(new_nodes)
-
-            if response.status_code == 200:
-                self.changed = True
-                self.msg = "Added and set {0} in {1} to {2}".format(
-                        self.node, self.pool, new_state)
-                self.pool_data = json.loads(response.text)
-            else:
-                self.module.fail_json(msg=
-                    "Failed to add and set {0} in {1} to {2} - got HTTP {4} \
-                    from server".format(self.node, self.pool, new_state,
-                                        response.status_code))
-
-    def set_disabled(self):
-        self.set_state('disabled')
-
-    def set_enabled(self):
-        self.set_state('active')
-
-    def set_draining(self):
-        self.set_state('draining')
+                self.msg = changes
 
 
 def main():
@@ -229,9 +231,13 @@ def main():
             argument_spec = dict(
                 name      = dict(required=True, aliases=['node']),
                 pool      = dict(required=True),
-                state     = dict(choices=['absent','present','disabled','enabled','draining'],
+                state     = dict(choices=['absent','present'],
                                  required=False,
                                  default='present'),
+                lb_state  = dict(choices=['active','disabled','draining'],
+                                 required=False),
+                weight    = dict(required=False),
+                priority  = dict(required=False),
                 server    = dict(required=True),
                 port      = dict(default=9070, required=False),
                 timeout   = dict(default=3, required=False),
@@ -241,6 +247,7 @@ def main():
             supports_check_mode = True,
     )
 
+    state      = module.params['state']
     server     = module.params['server']
     port       = module.params['port']
     timeout    = module.params['timeout']
@@ -248,23 +255,23 @@ def main():
     password   = module.params['password']
     pool       = module.params['pool']
     node       = module.params['name']
-    state      = module.params['state']
+    weight     = module.params['weight']
+    priority   = module.params['priority']
+    lb_state   = module.params['lb_state']
 
-    stingray_node = StingrayNode(module, server, port, timeout, user, password, pool, node)
+    stingray_node = StingrayNode(module, server, port, timeout, user, password,
+                                 pool, node, weight, priority, lb_state)
 
     try:
         if state == 'present':
             stingray_node.set_present()
-        elif state == 'enabled':
-            stingray_node.set_enabled()
         elif state == 'absent':
             stingray_node.set_absent()
-        elif state == 'disabled':
-            stingray_node.set_disabled()
-        elif state == 'draining':
-            stingray_node.set_draining()
+        else:
+            module.fail_json(msg="Unsupported state: {0}".format(state))
 
-        module.exit_json(changed=stingray_node.changed, msg=stingray_node.msg, data=stingray_node.pool_data)
+        module.exit_json(changed=stingray_node.changed, msg=stingray_node.msg,
+                         data=stingray_node.pool_data)
     except Exception as e:
         module.fail_json(msg=str(e))
 
