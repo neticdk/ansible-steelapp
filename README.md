@@ -7,7 +7,7 @@ Currently, it is using the REST API v. 3.0. No ther APIs are supported.
 ## Module: stingray_node
 Manages a node and it's properties.
 
-Full example:
+Complete example:
 ```
 - hosts: all
   connection: local

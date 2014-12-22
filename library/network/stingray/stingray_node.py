@@ -69,7 +69,61 @@ options:
         required: true
         default: null
 """
-# TODO: examples
+
+EXMPLES="""
+# Add a node to a pool
+- name: Add node to pool
+  stingray_node:
+    name: mynode:80
+    pool: mypool
+    state: present
+    server: myserver.mydomain.com
+    user: myuser
+    password: mypassword
+
+# Remove a node from a pool
+- name: Remove node from pool
+  stingray_node:
+    name: mynode:80
+    pool: mypool
+    state: absent
+    server: myserver.mydomain.com
+    user: myuser
+    password: mypassword
+
+# Disable a node in a pool
+- name: Disable node
+  stingray_node:
+    name: mynode:80
+    pool: mypool
+    lb_state: disabled
+    server: myserver.mydomain.com
+    user: myuser
+    password: mypassword
+
+# Drain a node in a pool
+- name: Drain node
+  stingray_node:
+    name: mynode:80
+    pool: mypool
+    lb_state: disabled
+    server: myserver.mydomain.com
+    user: myuser
+    password: mypassword
+  register: pool
+
+# Enable a node in a pool and set its weight to 10
+- name: Enable node and set weight
+  stingray_node:
+    name: mynode:80
+    pool: mypool
+    lb_state: active
+    weight: 10
+    server: myserver.mydomain.com
+    user: myuser
+    password: mypassword
+  register: pool
+"""
 
 class StingrayNode(object):
 
@@ -210,11 +264,11 @@ class StingrayNode(object):
                 current_node['priority'] = self.desired_priority
                 self.changed = True
 
+            self.msg = changes
+
+            if self.module.check_mode: return
+
             if self.changed:
-                self.msg = changes
-
-                if self.module.check_mode: return
-
                 new_nodes = [n for n in self._nodes() if n['node'] != self.node]
                 new_nodes = new_nodes+[current_node]
 
@@ -225,29 +279,27 @@ class StingrayNode(object):
                 else:
                     changes['error'] = "HTTP {2}".format(response.status_code)
                     self.module.fail_json(msg=changes)
-            else:
-                self.msg = changes
 
 
 def main():
     module = AnsibleModule(
-            argument_spec = dict(
-                name = dict(required=True, aliases=['node']),
-                pool = dict(required=True),
-                state = dict(choices=['absent','present'],
-                             required=False,
-                             default='present'),
-                lb_state = dict(choices=['active','disabled','draining'],
-                                required=False),
-                weight = dict(required=False),
-                priority = dict(required=False),
-                server = dict(required=True),
-                port = dict(default=9070, required=False),
-                timeout = dict(default=3, required=False),
-                user = dict(required=True),
-                password  = dict(required=True),
-            ),
-            supports_check_mode = True,
+        argument_spec = dict(
+            name = dict(required=True, aliases=['node']),
+            pool = dict(required=True),
+            state = dict(choices=['absent','present'],
+                         required=False,
+                         default='present'),
+            lb_state = dict(choices=['active','disabled','draining'],
+                            required=False),
+            weight = dict(required=False),
+            priority = dict(required=False),
+            server = dict(required=True),
+            port = dict(default=9070, required=False),
+            timeout = dict(default=3, required=False),
+            user = dict(required=True),
+            password  = dict(required=True),
+        ),
+        supports_check_mode = True,
     )
 
     state = module.params['state']
