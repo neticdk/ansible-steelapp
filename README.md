@@ -2,7 +2,7 @@
 
 These are ansible modules made for managing the Stingray Traffic Manager.
 
-Currently, it is using the REST API v. 3.0. No ther APIs are supported.
+Currently, it is using the REST API v. 3.0. No other API versions are supported.
 
 Presently, the following modules are available:
   * stingray\_node - for managing nodes in pools
