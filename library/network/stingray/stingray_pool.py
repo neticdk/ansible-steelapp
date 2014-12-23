@@ -19,13 +19,17 @@ options:
         required: true
         default: null
         aliases: ['pool']
-    operation:
+    state:
         description:
-            - Operation to perform on named pool
+            - State of pool
         required: false
-        default: 'show'
-        choices: ['show', 'enablenodes', 'disablenodes', 'drainnodes']
-        aliases: ['op', 'command']
+        default: 'present'
+        choices: ['present', 'absent']
+    properties:
+        description:
+            - Configuration hash of pool properties
+        required: false
+        default: {}
     server:
         description:
             - Server to connect to (without URI scheme or port)
@@ -51,13 +55,38 @@ options:
             - Password used for authentication
         required: true
         default: null
-    nodes:
-        description:
-            - List of nodes to perform node operations on
-        required: false
-        default: null
 """
-# TODO: examples
+EXMPLES="""
+# Create a pool
+- name: Create pool
+  stingray_pool:
+    name: mypool
+    state: present
+    server: myserver.mydomain.com
+    user: myuser
+    password: mypassword
+
+# Destroy a pool
+- name: Create pool
+  stingray_pool:
+    name: mypool
+    state: absent
+    server: myserver.mydomain.com
+    user: myuser
+    password: mypassword
+
+# Set properties on a pool
+- name: Set note for pool
+  stingray_pool:
+    name: mypool
+    state: absent
+    properties:
+      basic:
+        note: "This pool is cool"
+    server: myserver.mydomain.com
+    user: myuser
+    password: mypassword
+"""
 
 class StingrayPool(object):
 
@@ -100,19 +129,30 @@ class StingrayPool(object):
             self.module.fail_json(msg=str(e))
 
     def _pool_changes(self, new_pool, current_pool, parent=''):
+        """Recursively compare new_pool to current_pool."""
         changes=[]
         for k in new_pool.keys():
             if current_pool.get(k, None) is None:
                 continue
             if type(new_pool[k]) == type({}):
-                changes.extend(self._pool_changes(new_pool[k], current_pool[k], k))
+                changes.extend(self._pool_changes(new_pool[k],
+                               current_pool[k], k))
             else:
                 if new_pool[k] != current_pool[k]:
                     if parent=='':
-                        changes.append({k: {'before': current_pool[k], 'after': new_pool[k]}})
+                        changes.append({
+                            k: {
+                                'before': current_pool[k],
+                                'after': new_pool[k]
+                            }})
                     else:
-                        changes.append({"{0}.{1}".format(parent,k): {'before': current_pool[k], 'after': new_pool[k]}})
+                        changes.append({
+                            "{0}.{1}".format(parent,k): {
+                                'before': current_pool[k],
+                                'after': new_pool[k]
+                            }})
         return changes
+
 
     def set_absent(self):
         self.changed = False
@@ -136,6 +176,7 @@ class StingrayPool(object):
         else:
             self.changed = False
             self.msg = changes
+
 
     def set_present(self):
         self.changed = False

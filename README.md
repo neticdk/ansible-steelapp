@@ -71,6 +71,67 @@ Port to connect to (default: 9070).
 #### timeout
 HTTP timeout (default: 3).
 
+#### user
+Name of user to authenticate as.
+
+#### password
+Password used for authentication.
+
 
 ## Module: stingray_pool
 Manage a pool and it's properties
+
+Complete example:
+```
+- hosts: all
+  connection: local
+  gather_facts: False
+  tasks:
+    - name: Add pool and set note property
+      stingray_pool:
+        name: mypool
+        state: present
+        properties:
+          basic:
+            note: "This pool is cool."
+        server: myserver.mydomain.com
+        user: myuser
+        password: mypassword
+      register: pool
+```
+
+### Fields
+
+#### name (required)
+Name of pool to manage.
+
+#### state
+Desired state:
+  * present: ensure the pool exists
+  * absent: ensure the pool does not exist
+
+Default: present
+
+#### properties
+Hash of properties to set on the pool. See the REST API Documentation for more
+information about which properties can be set.
+
+Properties are merged with the existing ones.
+
+Please not that setting list values (such as properties->basic->nodes\_table)
+will replace the list with the new one.
+
+#### server (required)
+FQDN of stingray server.
+
+#### port
+Port to connect to (default: 9070).
+
+#### timeout
+HTTP timeout (default: 3).
+
+#### user
+Name of user to authenticate as.
+
+#### password
+Password used for authentication.

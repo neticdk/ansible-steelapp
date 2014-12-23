@@ -26,7 +26,7 @@ options:
         default: null
     state:
         description:
-            - Operation to perform on node
+            - State of node
         required: false
         default: 'present'
         choices: ['present', 'absent']
