@@ -128,7 +128,7 @@ EXMPLES="""
 class StingrayNode(object):
 
     def __init__(self, module, server, port, timeout, user, password, pool,
-                 node, weight, priority, lb_state):
+                 node, properties):
         self.module = module
         self.server = server
         self.port = port
@@ -137,9 +137,8 @@ class StingrayNode(object):
         self.password = password
         self.pool = pool
         self.node = node
-        self.desired_weight = weight
-        self.desired_priority = priority
-        self.desired_lb_state = lb_state
+        non_empty_props = dict((k,v,) for k,v in properties.iteritems() if v is not None)
+        self.properties = non_empty_props
         self.msg = ''
         self.changed = False
 
@@ -196,8 +195,8 @@ class StingrayNode(object):
 
             if self.module.check_mode: return
 
-            new_nodes = [n for n in self._nodes() if n['node'] != self.node]
-            response = self._set_nodes(new_nodes)
+            nodes = [n for n in self._nodes() if n['node'] != self.node]
+            response = self._set_nodes(nodes)
 
             if response.status_code == 200:
                 self.pool_data = json.loads(response.text)
@@ -220,14 +219,12 @@ class StingrayNode(object):
 
             if self.module.check_mode: return
 
-            new_nodes = self._nodes()+[{
-                'node': self.node,
-                'state': self.desired_lb_state or 'active',
-                'weight': self.desired_weight or 1,
-                'priority': self.desired_priority or 1,
-            }]
+            new_node = { 'node': self.node }
+            new_node.update(self.properties)
 
-            response = self._set_nodes(new_nodes)
+            nodes = self._nodes()+[new_node]
+
+            response = self._set_nodes(nodes)
 
             if response.status_code == 200:
                 self.pool_data = json.loads(response.text)
@@ -237,42 +234,24 @@ class StingrayNode(object):
         else:
             current_node = self._get_current_node()[0]
 
-            if (self.desired_lb_state and
-                self.desired_lb_state != current_node['state']):
-                changes['state'] = {
-                    'before': current_node['state'],
-                    'after': self.desired_lb_state
-                }
-                current_node['state'] = self.desired_lb_state
-                self.changed = True
-
-            if (self.desired_weight and
-                self.desired_weight != current_node['weight']):
-                changes['weight'] = {
-                    'before': current_node['weight'],
-                    'after': self.desired_weight
-                }
-                current_node['weight'] = self.desired_weight
-                self.changed = True
-
-            if (self.desired_priority and
-                self.desired_priority != current_node['priority']):
-                changes['priority'] = {
-                    'before': current_node['priority'],
-                    'after': self.desired_priority
-                }
-                current_node['priority'] = self.desired_priority
-                self.changed = True
+            for k,v in self.properties.iteritems():
+                if current_node.get(k, None) != v:
+                    changes[k] = {
+                        'before': current_node[k],
+                        'after': v
+                    }
+                    current_node[k] = v
+                    self.changed = True
 
             self.msg = changes
 
             if self.module.check_mode: return
 
             if self.changed:
-                new_nodes = [n for n in self._nodes() if n['node'] != self.node]
-                new_nodes = new_nodes+[current_node]
+                nodes = [n for n in self._nodes() if n['node'] != self.node]
+                nodes = nodes+[current_node]
 
-                response = self._set_nodes(new_nodes)
+                response = self._set_nodes(nodes)
 
                 if response.status_code == 200:
                     self.pool_data = json.loads(response.text)
@@ -310,13 +289,14 @@ def main():
     password = module.params['password']
     pool = module.params['pool']
     node = module.params['name']
-    weight = module.params['weight']
-    priority = module.params['priority']
-    lb_state = module.params['lb_state']
+    properties = dict(
+        weight=module.params['weight'],
+        priority=module.params['priority'],
+        state=module.params['lb_state'],
+    )
 
     stingray_node = StingrayNode(
-        module, server, port, timeout, user, password, pool, node, weight,
-        priority, lb_state)
+        module, server, port, timeout, user, password, pool, node, properties)
 
     try:
         if state == 'present':
