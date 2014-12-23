@@ -145,7 +145,7 @@ class StingrayNode(object):
         self._url = 'https://{0}:{1}/api/tm/3.0/config/active/pools/{2}'
         self._url = self._url.format(server, port, pool)
 
-        self._jsontype = {'content-type': 'application/json'}
+        self._content_type = {'content-type': 'application/json'}
 
         self._client = requests.Session()
         self._client.auth = (user, password)
@@ -180,8 +180,8 @@ class StingrayNode(object):
 
     def _set_nodes(self, nodes):
         pool_data = { 'properties': { 'basic': { 'nodes_table': nodes } } }
-        return self._client.put(self._url, data = json.dumps(pool_data),
-                                headers = self._jsontype)
+        return self._client.put(self._url, data=json.dumps(pool_data),
+                                headers=self._content_type)
 
 
     def set_absent(self):
@@ -190,7 +190,7 @@ class StingrayNode(object):
 
         if self._node_exists():
             self.changed = True
-            changes['action'] = 'remove_node'
+            changes['action'] = 'destroy_node'
             self.msg = changes
 
             if self.module.check_mode: return
@@ -213,7 +213,7 @@ class StingrayNode(object):
         changes = { 'node': self.node, 'pool': self.pool }
 
         if not self._node_exists():
-            changes['action'] = 'add_node'
+            changes['action'] = 'create_node'
             self.msg = changes
             self.changed = True
 
