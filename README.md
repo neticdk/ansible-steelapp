@@ -119,7 +119,7 @@ information about which properties can be set.
 Properties are merged with the existing ones.
 
 Please not that setting list values (such as properties->basic->nodes\_table)
-will replace the list with the new one.
+will replace the current list with the one provided.
 
 #### server (required)
 FQDN of stingray server.
