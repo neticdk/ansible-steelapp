@@ -165,9 +165,16 @@ class StingrayNode(object):
         except Exception as e:
             self.module.fail_json(msg=str(e))
 
+        if 'error_id' in self.pool_data:
+            self.module.fail_json(msg=self.pool_data)
+
 
     def _nodes(self):
-        return self.pool_data['properties']['basic']['nodes_table']
+        try:
+            pool_data = self.pool_data['properties']['basic']['nodes_table']
+        except KeyError:
+            self.module.fail_json(msg="Unable to find properties.basic.nodes_table in pool data")
+        return pool_data
 
 
     def _node_exists(self):

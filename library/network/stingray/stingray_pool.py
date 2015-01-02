@@ -128,6 +128,9 @@ class StingrayPool(object):
         except Exception as e:
             self.module.fail_json(msg=str(e))
 
+        if 'error_id' in self.pool_data:
+            self.module.fail_json(msg=self.pool_data)
+
     def _pool_changes(self, new_pool, current_pool, parent=''):
         """Recursively compare new_pool to current_pool."""
         changes=[]
