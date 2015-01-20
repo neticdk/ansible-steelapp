@@ -1,15 +1,15 @@
-# ansible-stingray
+# ansible-steelapp
 
-These are ansible modules made for managing the Stingray Traffic Manager.
+These are ansible modules made for managing the SteelApp Traffic Manager.
 
 Currently, it is using the REST API v. 3.0. No other API versions are supported.
 
 Presently, the following modules are available:
 
-  * stingray\_node - for managing nodes in pools
-  * stingray\_pool - for managing pool configurations
+  * steelapp\_node - for managing nodes in pools
+  * steelapp\_pool - for managing pool configurations
 
-## Module: stingray_node
+## Module: steelapp_node
 Manages a node and it's properties.
 
 Complete example:
@@ -20,7 +20,7 @@ Complete example:
   gather_facts: False
   tasks:
     - name: add node to pool
-      stingray_node:
+      steelapp_node:
         name: mynode:80
         pool: mypool
         state: present
@@ -67,7 +67,7 @@ Set the priority of the node.
 Defaults to the server's default.
 
 #### server (required)
-FQDN of stingray server.
+FQDN of steelapp server.
 
 #### port
 Port to connect to (default: 9070).
@@ -82,7 +82,7 @@ Name of user to authenticate as.
 Password used for authentication.
 
 
-## Module: stingray_pool
+## Module: steelapp_pool
 Manage a pool and it's properties
 
 Complete example:
@@ -93,7 +93,7 @@ Complete example:
   gather_facts: False
   tasks:
     - name: Add pool and set note property
-      stingray_pool:
+      steelapp_pool:
         name: mypool
         state: present
         properties:
@@ -128,7 +128,7 @@ Please not that setting list values (such as properties->basic->nodes\_table)
 will replace the current list with the one provided.
 
 #### server (required)
-FQDN of stingray server.
+FQDN of steelapp server.
 
 #### port
 Port to connect to (default: 9070).

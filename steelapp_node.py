@@ -6,11 +6,11 @@ import requests
 
 DOCUMENTATION = """
 ---
-module: stingray_node
+module: steelapp_node
 version_added: 1.8.2
-short_description: manage nodes in stingray traffic managers
+short_description: manage nodes in steelapp traffic managers
 description:
-    - Manage nodes in a Stingray Traffic Managers
+    - Manage nodes in a SteelApp Traffic Managers
 author: Kim Nørgaard
 options:
     name:
@@ -73,7 +73,7 @@ options:
 EXMPLES="""
 # Add a node to a pool
 - name: Add node to pool
-  stingray_node:
+  steelapp_node:
     name: mynode:80
     pool: mypool
     state: present
@@ -83,7 +83,7 @@ EXMPLES="""
 
 # Remove a node from a pool
 - name: Remove node from pool
-  stingray_node:
+  steelapp_node:
     name: mynode:80
     pool: mypool
     state: absent
@@ -93,7 +93,7 @@ EXMPLES="""
 
 # Disable a node in a pool
 - name: Disable node
-  stingray_node:
+  steelapp_node:
     name: mynode:80
     pool: mypool
     lb_state: disabled
@@ -103,7 +103,7 @@ EXMPLES="""
 
 # Drain a node in a pool
 - name: Drain node
-  stingray_node:
+  steelapp_node:
     name: mynode:80
     pool: mypool
     lb_state: disabled
@@ -114,7 +114,7 @@ EXMPLES="""
 
 # Enable a node in a pool and set its weight to 10
 - name: Enable node and set weight
-  stingray_node:
+  steelapp_node:
     name: mynode:80
     pool: mypool
     lb_state: active
@@ -125,7 +125,7 @@ EXMPLES="""
   register: pool
 """
 
-class StingrayNode(object):
+class SteelAppNode(object):
 
     def __init__(self, module, server, port, timeout, user, password, pool,
                  node, properties):
@@ -302,19 +302,19 @@ def main():
         state=module.params['lb_state'],
     )
 
-    stingray_node = StingrayNode(
+    steelapp_node = SteelAppNode(
         module, server, port, timeout, user, password, pool, node, properties)
 
     try:
         if state == 'present':
-            stingray_node.set_present()
+            steelapp_node.set_present()
         elif state == 'absent':
-            stingray_node.set_absent()
+            steelapp_node.set_absent()
         else:
             module.fail_json(msg="Unsupported state: {0}".format(state))
 
-        module.exit_json(changed=stingray_node.changed, msg=stingray_node.msg,
-                         data=stingray_node.pool_data)
+        module.exit_json(changed=steelapp_node.changed, msg=steelapp_node.msg,
+                         data=steelapp_node.pool_data)
     except Exception as e:
         module.fail_json(msg=str(e))
 

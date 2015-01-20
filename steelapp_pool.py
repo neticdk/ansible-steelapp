@@ -6,11 +6,11 @@ import requests
 
 DOCUMENTATION = """
 ---
-module: stingray_pool
+module: steelapp_pool
 version_added: 1.8.2
-short_description: manage stingray pools
+short_description: manage steelapp pools
 description:
-    - Manage pools in a Stingray Traffic Manager
+    - Manage pools in a SteelApp Traffic Manager
 author: Kim Nørgaard
 options:
     name:
@@ -59,7 +59,7 @@ options:
 EXMPLES="""
 # Create a pool
 - name: Create pool
-  stingray_pool:
+  steelapp_pool:
     name: mypool
     state: present
     server: myserver.mydomain.com
@@ -68,7 +68,7 @@ EXMPLES="""
 
 # Destroy a pool
 - name: Create pool
-  stingray_pool:
+  steelapp_pool:
     name: mypool
     state: absent
     server: myserver.mydomain.com
@@ -77,7 +77,7 @@ EXMPLES="""
 
 # Set properties on a pool
 - name: Set note for pool
-  stingray_pool:
+  steelapp_pool:
     name: mypool
     state: absent
     properties:
@@ -88,7 +88,7 @@ EXMPLES="""
     password: mypassword
 """
 
-class StingrayPool(object):
+class SteelAppPool(object):
 
     def __init__(self, module, server, port, timeout, user, password, pool,
                  properties):
@@ -262,19 +262,19 @@ def main():
     pool = module.params['name']
     properties = module.params['properties']
 
-    stingray_pool = StingrayPool(
+    steelapp_pool = SteelAppPool(
         module, server, port, timeout, user, password, pool, properties)
 
     try:
         if state == 'present':
-            stingray_pool.set_present()
+            steelapp_pool.set_present()
         elif state == 'absent':
-            stingray_pool.set_absent()
+            steelapp_pool.set_absent()
         else:
             module.fail_json(msg="Unsupported state: {0}".format(state))
 
-        module.exit_json(changed=stingray_pool.changed, msg=stingray_pool.msg,
-                         data=stingray_pool.pool_data)
+        module.exit_json(changed=steelapp_pool.changed, msg=steelapp_pool.msg,
+                         data=steelapp_pool.pool_data)
     except Exception as e:
         module.fail_json(msg=str(e))
 
