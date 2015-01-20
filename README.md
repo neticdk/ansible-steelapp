@@ -5,6 +5,7 @@ These are ansible modules made for managing the Stingray Traffic Manager.
 Currently, it is using the REST API v. 3.0. No other API versions are supported.
 
 Presently, the following modules are available:
+
   * stingray\_node - for managing nodes in pools
   * stingray\_pool - for managing pool configurations
 
@@ -12,6 +13,7 @@ Presently, the following modules are available:
 Manages a node and it's properties.
 
 Complete example:
+
 ```
 - hosts: all
   connection: local
@@ -41,6 +43,7 @@ Name of pool to manage.
 
 #### state
 Desired state:
+
   * present: ensure the node exists
   * absent: ensure the node does not exist
 
@@ -48,6 +51,7 @@ Default: present
 
 #### lb_state
 State of node in pool:
+
   * active: enable the node (default for new nodes)
   * disabled: disable the node
   * draining: drain the node
@@ -82,6 +86,7 @@ Password used for authentication.
 Manage a pool and it's properties
 
 Complete example:
+
 ```
 - hosts: all
   connection: local
@@ -107,6 +112,7 @@ Name of pool to manage.
 
 #### state
 Desired state:
+
   * present: ensure the pool exists
   * absent: ensure the pool does not exist
 
